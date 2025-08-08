@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZeroDarq30</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .today-highlight {
+            border-color: #fb923c; /* Neon Orange */
+            box-shadow: 0 4px 14px 0 rgba(251, 146, 60, 0.2);
+            transform: scale(1.02);
+        }
+        .action-btn {
+            transition: all 0.3s ease;
+        }
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .gemini-btn {
+            background: linear-gradient(45deg, #f97316, #ea580c); /* Orange Gradient */
+        }
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: #1f2937; /* Gray 800 */
+            color: #d1d5db; /* Gray 300 */
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+        /* Simple spinner */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #fb923c; /* Neon Orange */
+            animation: spin 1s ease infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .prose h2 { color: #fff; }
+        .prose strong { color: #fb923c; }
+        .prose ul { list-style-position: inside; }
+        .prose li { margin-left: 1rem; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-300">
+
+    <div id="app" class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-white">ZeroDarq30</h1>
+            <p class="text-gray-400 mt-2 text-lg">Your 4-Week Intelligent Training Plan</p>
+            <button id="download-calendar-btn" class="action-btn bg-orange-600 text-white font-semibold py-2 px-6 rounded-lg mt-6 text-base">
+                <i class="fas fa-calendar-plus mr-2"></i>Add to Calendar
+            </button>
+        </header>
+
+        <!-- Key Info Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
+                <h3 class="text-xl font-bold mb-3 text-white flex items-center"><i class="fas fa-bullseye mr-3 text-orange-400"></i>Key Principles</h3>
+                <ul class="space-y-2 text-gray-300 list-disc list-inside">
+                    <li><span class="font-semibold">Easy Runs:</span> Conversational pace.</li>
+                    <li><span class="font-semibold">Speed Work:</span> Tempo or intervals to build speed.</li>
+                    <li><span class="font-semibold">Long Runs:</span> The most important run for endurance.</li>
+                    <li><span class="font-semibold">Cross-Training (XT):</span> Longboarding or other low-impact activities.</li>
+                </ul>
+            </div>
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700">
+                <h3 class="text-xl font-bold mb-3 text-white flex items-center"><i class="fas fa-shoe-prints mr-3 text-orange-400"></i>Shoe Rotation</h3>
+                <ul class="space-y-2 text-gray-300 list-disc list-inside">
+                    <li><span class="font-semibold">Adizero Evo SL:</span> For all weekday Easy Runs.</li>
+                    <li><span class="font-semibold">Adizero Takumi Sen 10:</span> For Speed Work, Long Runs, and Race Day.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Training Plan Section -->
+        <div id="training-schedule"></div>
+
+        <!-- Footer -->
+        <footer class="text-center mt-12 text-gray-500">
+            <p>Listen to your body. Consistency over intensity. Good luck!</p>
+        </footer>
+    </div>
+
+    <!-- Gemini Modal -->
+    <div id="gemini-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modal-title" class="text-2xl font-bold text-white">AI-Powered Advice</h2>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="modal-body">
+                <div id="modal-spinner" class="flex justify-center items-center h-48">
+                    <div class="spinner"></div>
+                </div>
+                <div id="modal-response" class="prose max-w-none"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const trainingPlan = [
+            // Week 1
+            { week: 1, goal: 'Re-acclimatization', day: 'Monday', date: '2025-08-11', activity: 'Rest', shoes: null, notes: 'Rest is when your body repairs itself and gets stronger. Full recovery is crucial to prevent injury and absorb your training.', location: null },
+            { week: 1, goal: 'Re-acclimatization', day: 'Tuesday', date: '2025-08-12', activity: 'Easy Run: 5 km', shoes: 'Evo SL', notes: 'Run at a comfortable, conversational pace. This builds your aerobic base and helps muscles recover from harder workouts.', location: 'Achimota School road' },
+            { week: 1, goal: 'Re-acclimatization', day: 'Wednesday', date: '2025-08-13', activity: 'Speed Work: 4x800m', shoes: 'Takumi Sen 10', notes: 'Run 800m at a hard pace, then jog/walk 400m to recover. Repeat 4 times. This workout boosts your top-end speed and efficiency.', location: 'University of Ghana track' },
+            { week: 1, goal: 'Re-acclimatization', day: 'Thursday', date: '2025-08-14', activity: 'Easy Run: 5 km', shoes: 'Evo SL', notes: 'Keep the pace relaxed and controlled. The goal is consistency and recovery, not speed.', location: 'Achimota School road' },
+            { week: 1, goal: 'Re-acclimatization', day: 'Friday', date: '2025-08-15', activity: 'Rest', shoes: null, notes: 'Final rest day before the wedding. Focus on hydration and mobility.', location: null },
+            { week: 1, goal: 'Re-acclimatization', day: 'Saturday', date: '2025-08-16', activity: 'WEDDING - Rest Day', shoes: null, notes: 'Enjoy the day! Stay hydrated and try not to stand for hours on end if possible.', location: null },
+            { week: 1, goal: 'Re-acclimatization', day: 'Sunday', date: '2025-08-17', activity: 'Long Run: 10 km', shoes: 'Takumi Sen 10', notes: 'The goal is time on feet, not speed. Run at an easy pace to build endurance. Practice your hydration strategy.', location: 'Mix of road and Achimota loop' },
+            // Week 2
+            { week: 2, goal: 'Building Mileage', day: 'Monday', date: '2025-08-18', activity: 'Rest or XT', shoes: null, notes: 'Either take a full rest day or enjoy a low-impact longboarding session to keep the body moving without the stress of running.', location: null },
+            { week: 2, goal: 'Building Mileage', day: 'Tuesday', date: '2025-08-19', activity: 'Easy Run: 6 km', shoes: 'Evo SL', notes: 'A straightforward easy run to add mileage. Maintain a conversational pace throughout.', location: 'Achimota School road' },
+            { week: 2, goal: 'Building Mileage', day: 'Wednesday', date: '2025-08-20', activity: 'Tempo Run: 4 km', shoes: 'Takumi Sen 10', notes: 'A sustained run at a "comfortably hard" pace after a warm-up. This improves your lactate threshold, helping you run faster for longer.', location: 'Achimota School road' },
+            { week: 2, goal: 'Building Mileage', day: 'Thursday', date: '2025-08-21', activity: 'Easy Run: 6 km', shoes: 'Evo SL', notes: 'Another easy day to build your aerobic base and recover from the tempo run. Keep it relaxed.', location: 'Achimota School road' },
+            { week: 2, goal: 'Building Mileage', day: 'Friday', date: '2025-08-22', activity: 'Rest', shoes: null, notes: 'Crucial rest day to prepare your body for the longest run of the week.', location: null },
+            { week: 2, goal: 'Building Mileage', day: 'Saturday', date: '2025-08-23', activity: 'Long Run: 14 km', shoes: 'Takumi Sen 10', notes: 'This is a key endurance-building session. Focus on maintaining a steady, easy pace. Use this run to test your nutrition and hydration plan.', location: 'Road run' },
+            { week: 2, goal: 'Building Mileage', day: 'Sunday', date: '2025-08-24', activity: 'Active Recovery', shoes: null, notes: 'A gentle walk or very light longboarding session. This increases blood flow to the muscles, aiding recovery without adding stress.', location: null },
+            // Week 3
+            { week: 3, goal: 'Peak Week', day: 'Monday', date: '2025-08-25', activity: 'Rest', shoes: null, notes: 'Your most important rest day. Your body needs to fully absorb the hard work of the previous weeks to prepare for the peak run.', location: null },
+            { week: 3, goal: 'Peak Week', day: 'Tuesday', date: '2025-08-26', activity: 'Easy Run: 7 km', shoes: 'Evo SL', notes: 'Slightly longer easy run to keep the legs fresh. Maintain a conversational pace.', location: 'Achimota School road' },
+            { week: 3, goal: 'Peak Week', day: 'Wednesday', date: '2025-08-27', activity: 'Speed Work: 6x400m', shoes: 'Takumi Sen 10', notes: 'Shorter, faster intervals. Run 400m at a very hard pace, then recover with a 400m jog/walk. Repeat 6 times. Builds speed and power.', location: 'University of Ghana track' },
+            { week: 3, goal: 'Peak Week', day: 'Thursday', date: '2025-08-28', activity: 'Easy Run: 5 km', shoes: 'Evo SL', notes: 'A shorter, easier day to allow your body to recover from the speed work and rest up for the big long run.', location: 'Achimota School road' },
+            { week: 3, goal: 'Peak Week', day: 'Friday', date: '2025-08-29', activity: 'Rest', shoes: null, notes: 'Final rest before your peak long run. Stay off your feet, hydrate, and eat well.', location: null },
+            { week: 3, goal: 'Peak Week', day: 'Saturday', date: '2025-08-30', activity: 'Peak Long Run: 18 km', shoes: 'Takumi Sen 10', notes: 'This is your race day dress rehearsal. Run at a steady, easy pace. Practice your exact race day nutrition, hydration, and gear.', location: 'Road run' },
+            { week: 3, goal: 'Peak Week', day: 'Sunday', date: '2025-08-31', activity: 'Active Recovery / XT', shoes: null, notes: 'A final longboarding session or a gentle walk. Helps flush out lactic acid and reduces muscle stiffness.', location: null },
+            // Week 4
+            { week: 4, goal: 'Taper & Race Week', day: 'Monday', date: '2025-09-01', activity: 'Rest', shoes: null, notes: 'Tapering begins. Rest is essential this week to ensure you arrive at the start line with fresh legs and full energy stores.', location: null },
+            { week: 4, goal: 'Taper & Race Week', day: 'Tuesday', date: '2025-09-02', activity: 'Easy Run: 5 km + Strides', shoes: 'Evo SL', notes: 'Easy run to keep loose. At the end, do 4x 100m "strides" (fast, but not sprinting) to remind your legs of speed.', location: 'University of Ghana track' },
+            { week: 4, goal: 'Taper & Race Week', day: 'Wednesday', date: '2025-09-03', activity: 'Easy Run: 3 km', shoes: 'Evo SL', notes: 'A very short, very easy run to shake out any stiffness and calm pre-race nerves.', location: 'Achimota School road' },
+            { week: 4, goal: 'Taper & Race Week', day: 'Thursday', date: '2025-09-04', activity: 'Rest', shoes: null, notes: 'Complete rest. Trust your training. You will not gain any fitness this close to the race.', location: null },
+            { week: 4, goal: 'Taper & Race Week', day: 'Friday', date: '2025-09-05', activity: 'Rest', shoes: null, notes: 'Final preparations. Lay out your race day gear. Hydrate throughout the day and eat a familiar, carbohydrate-rich meal for dinner.', location: null },
+            { week: 4, goal: 'Taper & Race Week', day: 'Saturday', date: '2025-09-06', activity: 'RACE DAY: 21.1 km', shoes: 'Takumi Sen 10', notes: 'Trust your training. Start the race slower than you think you should, and finish strong. Good luck!', location: 'Half Marathon' },
+        ];
+        
+        // --- GEMINI API INTEGRATION ---
+
+        const modal = document.getElementById('gemini-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalSpinner = document.getElementById('modal-spinner');
+        const modalResponse = document.getElementById('modal-response');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        function showModal(title) {
+            modalTitle.textContent = title;
+            modalResponse.innerHTML = '';
+            modalSpinner.style.display = 'flex';
+            modal.classList.add('visible');
+        }
+
+        function hideModal() {
+            modal.classList.remove('visible');
+        }
+
+        closeModalBtn.addEventListener('click', hideModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                hideModal();
+            }
+        });
+
+        async function makeApiCall(prompt, maxRetries = 3) {
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const result = await response.json();
+                    if (result.candidates?.[0]?.content?.parts?.[0]) {
+                        let text = result.candidates[0].content.parts[0].text;
+                        text = text.replace(/## (.*)/g, '<h2 class="text-white">$1</h2>').replace(/\* \*(.*?)\* \*/g, '<strong class="text-orange-400">$1</strong>').replace(/\* (.*)/g, '<li>$1</li>').replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>').replace(/\n/g, '<br>');
+                        modalSpinner.style.display = 'none';
+                        modalResponse.innerHTML = text;
+                        return;
+                    } else { throw new Error("Invalid API response structure."); }
+                } catch (error) {
+                    console.error(`Attempt ${i + 1} failed:`, error);
+                    if (i === maxRetries - 1) {
+                        modalSpinner.style.display = 'none';
+                        modalResponse.innerHTML = `<p class="text-red-500">Sorry, something went wrong. Please try again later.</p><p class="text-sm text-gray-500 mt-2">${error.message}</p>`;
+                    } else { await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, i))); }
+                }
+            }
+        }
+
+        function handleFuelingTipsClick(event) {
+            const distance = event.target.dataset.distance;
+            const prompt = `You are a running coach. Provide concise, actionable nutrition and hydration tips for a runner in Accra, Ghana, about to do a ${distance} long run. Suggest locally available and easily digestible options. Focus on what to eat/drink before, during, and after. Format the response as simple bullet points using markdown with bold headings like **Before the Run:**.`;
+            showModal(`Fueling Tips for ${distance}`);
+            makeApiCall(prompt);
+        }
+
+        function handleRaceStrategyClick() {
+            const prompt = `You are an expert running coach. Generate a comprehensive but easy-to-read race day strategy for a half marathon (21.1km). The runner has been training for one month. Include sections for: **Pre-Race Checklist** (what to prepare the night before), **Morning Of** (what to eat, when to wake up), **Pacing Strategy** (how to break down the race in 5km splits), and **Mental Tips** (how to stay positive). Format the response using markdown with bold headings.`;
+            showModal('Your Race Day Strategy');
+            makeApiCall(prompt);
+        }
+
+        // --- CALENDAR .ICS FILE GENERATION ---
+        function generateICSFile() {
+            let icsContent = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//Gemini//ZeroDarq30 Plan//EN',
+            ];
+
+            const formatDate = (date) => date.replace(/-/g, '');
+
+            trainingPlan.forEach(day => {
+                const uid = `halfmarathon-${day.date}-${day.activity.replace(/[^a-zA-Z0-9]/g, "")}@gemini.app`;
+                const dtstamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 15) + 'Z';
+                const summary = `ZeroDarq30: ${day.activity}`;
+                
+                let description = `Week ${day.week} Goal: ${day.goal}`;
+                if (day.shoes) description += `\\nShoes: ${day.shoes}`;
+                if (day.notes) description += `\\nNotes: ${day.notes.replace(/\n/g, '\\n')}`;
+
+                let dtstart, dtend;
+                const activityLower = day.activity.toLowerCase();
+
+                if (activityLower.includes('rest') || activityLower.includes('wedding') || activityLower.includes('recovery') || activityLower.includes('xt')) {
+                    dtstart = `DTSTART;VALUE=DATE:${formatDate(day.date)}`;
+                    dtend = `DTEND;VALUE=DATE:${formatDate(new Date(new Date(day.date).getTime() + 86400000).toISOString().split('T')[0])}`;
+                } else {
+                    let startTime = '18:00:00', endTime = '19:00:00'; // Weekday default
+                    if (['Saturday', 'Sunday'].includes(day.day)) {
+                        startTime = '07:00:00'; // Weekend default
+                        endTime = '09:00:00';
+                        if (activityLower.includes('14 km')) endTime = '09:30:00';
+                        if (activityLower.includes('18 km')) endTime = '10:00:00';
+                    } else if (activityLower.includes('speed') || activityLower.includes('tempo')) {
+                        endTime = '19:30:00';
+                    }
+                    dtstart = `DTSTART;TZID=GMT:${formatDate(day.date)}T${startTime.replace(/:/g, '')}`;
+                    dtend = `DTEND;TZID=GMT:${formatDate(day.date)}T${endTime.replace(/:/g, '')}`;
+                }
+
+                icsContent.push('BEGIN:VEVENT', `UID:${uid}`, `DTSTAMP:${dtstamp}`, dtstart, dtend, `SUMMARY:${summary}`);
+                if (day.location) icsContent.push(`LOCATION:${day.location}, Accra, Ghana`);
+                icsContent.push(`DESCRIPTION:${description}`, 'END:VEVENT');
+            });
+
+            icsContent.push('END:VCALENDAR');
+            
+            const blob = new Blob([icsContent.join('\r\n')], { type: 'text/calendar' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'ZeroDarq30_Plan.ics';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+
+        // --- UI RENDERING ---
+
+        function createDayCard(day) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dayDate = new Date(day.date + 'T00:00:00');
+            const isToday = today.getTime() === dayDate.getTime();
+            const isPast = today.getTime() > dayDate.getTime();
+            
+            let cardClasses = 'bg-gray-800 rounded-xl p-5 flex flex-col transition-all duration-300 shadow-lg border border-gray-700';
+            if (isToday) cardClasses += ' today-highlight';
+            else if (isPast) cardClasses += ' opacity-60';
+
+            const formattedDate = dayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+            let activityIcon = 'fa-person-running';
+            if (day.activity.toLowerCase().includes('rest')) activityIcon = 'fa-bed';
+            if (day.activity.toLowerCase().includes('xt')) activityIcon = 'fa-skateboard';
+            if (day.activity.toLowerCase().includes('race')) activityIcon = 'fa-flag-checkered';
+            if (day.activity.toLowerCase().includes('wedding')) activityIcon = 'fa-champagne-glasses';
+
+            let geminiButton = '';
+            if (day.activity.toLowerCase().includes('long run')) {
+                geminiButton = `<button data-distance="${day.activity.split(':')[1].trim()}" class="action-btn gemini-btn text-white font-semibold py-2 px-4 rounded-lg w-full mt-4 text-sm get-fueling-tips">✨ Get Fueling Tips</button>`;
+            }
+            if (day.activity.toLowerCase().includes('race day')) {
+                geminiButton = `<button class="action-btn gemini-btn text-white font-semibold py-2 px-4 rounded-lg w-full mt-4 text-sm get-race-strategy">✨ Get Race Day Strategy</button>`;
+            }
+
+            return `
+                <div class="${cardClasses}">
+                    <div class="flex justify-between items-center mb-3">
+                        <p class="font-bold text-lg text-white">${day.day}</p>
+                        <p class="text-sm font-medium bg-gray-700 text-gray-300 px-2 py-1 rounded-full">${formattedDate}</p>
+                    </div>
+                    <div class="flex-grow">
+                        <h4 class="text-xl font-semibold text-orange-400 mb-2 flex items-center">
+                            <i class="fas ${activityIcon} mr-3 fa-fw"></i>
+                            <span>${day.activity}</span>
+                        </h4>
+                        ${day.location ? `<p class="text-sm text-gray-400 mb-2 flex items-start"><i class="fas fa-map-marker-alt mr-3 fa-fw mt-1"></i><span>${day.location}</span></p>` : ''}
+                        ${day.shoes ? `<p class="text-sm text-gray-400 mb-2 flex items-start"><i class="fas fa-shoe-prints mr-3 fa-fw mt-1"></i><span>${day.shoes}</span></p>` : ''}
+                        ${day.notes ? `<p class="text-sm text-gray-300 bg-gray-900/50 p-3 rounded-md mt-2 border border-gray-700">${day.notes}</p>` : ''}
+                    </div>
+                    ${geminiButton}
+                </div>
+            `;
+        }
+
+        function renderPlan() {
+            const scheduleContainer = document.getElementById('training-schedule');
+            let currentWeek = 0;
+            let contentHtml = '';
+
+            trainingPlan.forEach(day => {
+                if (day.week !== currentWeek) {
+                    if (currentWeek !== 0) contentHtml += `</div>`;
+                    currentWeek = day.week;
+                    contentHtml += `
+                        <div class="mb-8">
+                            <h2 class="text-2xl sm:text-3xl font-bold text-white mt-8 mb-4 pb-2 border-b-2 border-gray-700">
+                                Week ${currentWeek}: <span class="text-orange-400">${day.goal}</span>
+                            </h2>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    `;
+                }
+                contentHtml += createDayCard(day);
+            });
+
+            contentHtml += `</div></div>`;
+            scheduleContainer.innerHTML = contentHtml;
+
+            // Add event listeners after rendering
+            document.querySelectorAll('.get-fueling-tips').forEach(btn => btn.addEventListener('click', handleFuelingTipsClick));
+            document.querySelectorAll('.get-race-strategy').forEach(btn => btn.addEventListener('click', handleRaceStrategyClick));
+            document.getElementById('download-calendar-btn').addEventListener('click', generateICSFile);
+        }
+
+        document.addEventListener('DOMContentLoaded', renderPlan);
+    </script>
+</body>
+</html>
